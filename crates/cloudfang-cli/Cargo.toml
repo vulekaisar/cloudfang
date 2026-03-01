@@ -1,0 +1,25 @@
+[package]
+name = "cloudfang-cli"
+description = "CLI interface for CloudFang"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "cloudfang"
+path = "src/main.rs"
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dotenvy.workspace = true
+chrono.workspace = true
+                                                                                        
+cloudfang-core.workspace = true
+cloudfang-ops.workspace = true
+cloudfang-hands.workspace = true
+cloudfang-store.workspace = true

@@ -1,0 +1,23 @@
+# CloudFang Configuration Example
+# Copy this to cloudfang.toml and edit with your credentials.
+
+[openstack]
+auth_url = "http://your-openstack-host:5000/v3"
+username = "admin"
+password = "your-password"
+project_name = "admin"
+domain_name = "Default"
+
+[llm]
+provider = "openai"           # "openai" or "ollama"
+api_key = "sk-..."            # Leave empty for Ollama
+model = "gpt-4o-mini"         # Or "llama3" for Ollama
+base_url = "https://api.openai.com/v1"  # Or "http://localhost:11434/v1" for Ollama
+
+[store]
+db_path = "cloudfang.db"
+
+[hands]
+monitor_interval_secs = 300   # 5 minutes
+backup_cron = "0 2 * * *"     # Daily at 2 AM
+scale_check_interval_secs = 900  # 15 minutes

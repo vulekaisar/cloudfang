@@ -1,0 +1,24 @@
+[package]
+name = "cloudfang-core"
+description = "Core agent runtime for CloudFang"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+async-openai.workspace = true
+chrono.workspace = true
+cron.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+uuid.workspace = true
+dotenvy.workspace = true
+
+cloudfang-ops.workspace = true
+cloudfang-store.workspace = true
