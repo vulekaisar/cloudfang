@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+Cargo.lock
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+# OS
+.DS_Store
