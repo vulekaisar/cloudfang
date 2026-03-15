@@ -4,24 +4,36 @@
 
 **Autonomous OpenStack SysOps Agent — Built with Rust**
 
-[![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)]()
-[![OpenStack](https://img.shields.io/badge/OpenStack-Compatible-red?style=flat-square&logo=openstack)](https://www.openstack.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![OpenStack](https://img.shields.io/badge/OpenStack-Compatible-red?style=for-the-badge&logo=openstack)](https://www.openstack.org/)
+[![LLM Powered](https://img.shields.io/badge/LLM-Powered-green?style=for-the-badge&logo=openai)](https://openai.com/)
+
+---
 
 *A lightweight, LLM-powered SysOps agent that monitors, heals, backs up, and scales your OpenStack cloud infrastructure — autonomously.*
 
+[**Overview**](#-overview) | [**Features**](#-key-features) | [**Architecture**](#-architecture) | [**Getting Started**](#-getting-started) | [**CLI Reference**](#-cli-reference)
+
+---
+
 </div>
+
+## 🇻🇳 Giới thiệu (Vietnamese)
+
+**CloudFang** là một AI Agent tự hành được xây dựng bằng ngôn ngữ Rust, thiết kế chuyên biệt cho việc quản trị hạ tầng **OpenStack**. Dự án này mang đến khả năng "tự vận hành" cho hệ thống đám mây của bạn, giúp tự động hóa các tác vụ giám sát, khắc phục sự cố, sao lưu và mở rộng tài nguyên mà không cần sự can thiệp liên tục từ con người.
+
+Với CloudFang, SysOps Team có thể chuyển từ việc "phản ứng với sự cố" sang "giám sát chủ động" thông qua sức mạnh của các **SysOps Hands** (Cánh tay vận hành) được hỗ trợ bởi các mô hình ngôn ngữ lớn (LLM) như GPT-4o hoặc các model chạy local qua Ollama.
 
 ---
 
 ## 🌟 Overview
 
-**CloudFang** is an autonomous AI agent built in Rust, designed specifically for **OpenStack cloud infrastructure operations**. Inspired by the OpenFang agentic framework but stripped down to its most powerful essentials, CloudFang gives your cloud a brain.
+**CloudFang** is an autonomous AI agent built in Rust, designed specifically for **OpenStack cloud infrastructure operations**. Taking inspiration from the OpenFang framework but optimized for performance and reliability in Rust, CloudFang acts as an intelligent layer above your cloud APIs.
 
-Instead of manually watching dashboards and reacting to incidents, CloudFang's **SysOps Hands** work in the background — watching, thinking, and acting on your behalf.
+Instead of manually watching dashboards, CloudFang's **SysOps Hands** work in the background — observing state, reasoning about issues, and executing remediation.
 
-```
+```text
                      ┌─────────────────────────┐
                      │      cloudfang-cli       │
                      │    (CLI + TUI Dashboard) │
@@ -52,81 +64,25 @@ Instead of manually watching dashboards and reacting to incidents, CloudFang's *
 
 | Feature | Description |
 |---|---|
-| 🤖 **LLM-Powered Decisions** | Uses GPT-4o / Ollama to analyze metrics and decide on actions |
-| 👁️ **Autonomous Monitoring** | Every 5 minutes: checks VM health, disk, network, service status |
-| 🔧 **Self-Healing Remediation** | Detects failures and auto-restarts VMs, clears disk, reconnects network |
-| 💾 **Scheduled Backups** | Daily snapshots of VMs & volumes at 2 AM with automatic cleanup |
-| 📈 **Intelligent Scaling** | Analyzes load every 15 minutes and recommends or executes scale up/down |
-| 🗃️ **Full Audit Trail** | Every agent action is logged to SQLite with timestamps and outcomes |
-| 💬 **Conversational Interface** | Ask `cloudfang chat` natural language questions about your infrastructure |
+| 🤖 **LLM-Powered Decisions** | Uses GPT-4o / Ollama to analyze metrics and perform complex tool calls. |
+| 👁️ **Autonomous Monitoring** | Continuous health checks for VMs, disk, network, and OpenStack services. |
+| 🔧 **Self-Healing Remediation** | Automatically detects failures and attempts recovery (restart, clear disk, etc.). |
+| 💾 **Scheduled Backups** | Intelligent snapshot orchestration for critical VMs and volumes. |
+| 📈 **Intelligent Scaling** | Trend analysis of system load with actionable recommendations or auto-scaling. |
+| 🗃️ **Universal Persistence** | All actions, logs, and metrics are stored in a local SQLite database for auditing. |
+| 💬 **Natural Language Ops** | Interactive chat interface to query status: *"Which VMs are idle for 7 days?"* |
 
 ---
 
-## 🏗️ Architecture — 5-Crate Workspace
+## 🏗️ Architecture — Crate-Based Workspace
 
-```
-cloudfangproject/
-├── Cargo.toml                    # Workspace root
-├── cloudfang.toml                # Runtime configuration
-├── cloudfang.toml.example        # Configuration template
-└── crates/
-    ├── cloudfang-core/           # 🧠 Agent runtime, LLM client, scheduler
-    │   └── src/
-    │       ├── agent.rs          # Agent loop: task → LLM → tool → action
-    │       ├── config.rs         # Config loader (cloudfang.toml)
-    │       ├── llm.rs            # LLM client (OpenAI-compatible + Ollama)
-    │       ├── scheduler.rs      # Cron-based Hand scheduler
-    │       └── tools.rs          # Tool registry for LLM function-calling
-    ├── cloudfang-ops/            # ☁️ OpenStack API clients
-    │   └── src/
-    │       ├── keystone.rs       # Auth (token, projects, users)
-    │       ├── nova.rs           # Compute (VMs, reboot, migrate, console)
-    │       ├── neutron.rs        # Network (networks, subnets, floating IPs)
-    │       ├── cinder.rs         # Block Storage (volumes, snapshots)
-    │       ├── glance.rs         # Image service
-    │       ├── heat.rs           # Orchestration (stacks)
-    │       └── metrics.rs        # Metrics (Ceilometer/Gnocchi)
-    ├── cloudfang-hands/          # 🤲 Autonomous SysOps Hands
-    │   └── src/
-    │       ├── monitor.rs        # Monitor Hand (every 5 min)
-    │       ├── remediate.rs      # Remediate Hand (event-driven)
-    │       ├── backup.rs         # Backup Hand (daily 2 AM)
-    │       └── scale.rs          # Scale Hand (every 15 min)
-    ├── cloudfang-store/          # 🗄️ SQLite persistence & audit log
-    └── cloudfang-cli/            # 💻 CLI interface & TUI dashboard
-```
+CloudFang is organized as a modular Rust workspace for maximum maintainability:
 
----
-
-## 🤲 The Four Hands
-
-CloudFang's autonomous operations are powered by four **Hands** — AI agents that run on independent schedules:
-
-### 👁️ Monitor Hand — Every 5 Minutes
-Continuously checks the health of your whole cluster:
-- VM status (running, error, paused)
-- Disk usage across all volumes
-- Network latency & floating IP reachability
-- OpenStack service health (Nova, Neutron, Cinder...)
-
-### 🔧 Remediate Hand — Event-Driven
-When Monitor detects an issue, Remediate kicks in automatically:
-- Restart failed/error-state VMs
-- Clear disk space on over-utilized volumes
-- Reconnect broken network ports
-- Escalate to alert if auto-fix fails
-
-### 💾 Backup Hand — Daily at 2:00 AM
-Runs a nightly snapshot cycle:
-- Snapshot all VMs and volumes marked as critical
-- Rotate and clean up snapshots older than retention policy
-- Log all snapshot operations to audit trail
-
-### 📈 Scale Hand — Every 15 Minutes
-Analyzes load trends and acts on them:
-- Pull CPU, memory, disk, and network metrics via Gnocchi/Ceilometer
-- Send to LLM for analysis and recommendation
-- Suggest or execute scale-up/scale-down actions
+- **`cloudfang-core`**: The brain. Contains the agent loop, LLM integration (via `async-openai` and `rig-core`), and the task scheduler.
+- **`cloudfang-ops`**: The hands. Custom OpenStack API client implementing Keystone (Auth), Nova (Compute), Neutron (Network), Cinder (Storage), and more.
+- **`cloudfang-hands`**: The agents. Defines specific autonomous behaviors (Monitor, Remediate, Backup, Scale).
+- **`cloudfang-store`**: The memory. SQLite backend for incident tracking, metrics history, and audit logs.
+- **`cloudfang-cli`**: The face. Command-line interface and planned TUI for human interaction.
 
 ---
 
@@ -135,229 +91,98 @@ Analyzes load trends and acts on them:
 ### Prerequisites
 
 - **Rust** `1.75+` — [Install via rustup](https://rustup.rs/)
-- **An OpenStack cluster** (or mock mode for development)
-- **An LLM API Key**: OpenAI API key, *or* a local [Ollama](https://ollama.ai/) instance
+- **Access to an OpenStack Cluster** (or environment variables for mock mode)
+- **OpenAI API Key** or local **Ollama** instance.
 
-### 1. Clone the Repository
+### 1. Installation
 
 ```bash
 git clone https://github.com/vulekaisar/cloudfang.git
 cd cloudfang
+cargo build --release
 ```
 
-### 2. Configure CloudFang
+### 2. Configuration
 
-Copy the example config and fill in your credentials:
+Copy the template and fill in your OpenStack and LLM credentials:
 
 ```bash
 cp cloudfang.toml.example cloudfang.toml
+# Edit cloudfang.toml with your favorite editor
 ```
 
-Edit `cloudfang.toml`:
-
-```toml
-[openstack]
-auth_url     = "http://your-openstack-host:5000/v3"
-username     = "admin"
-password     = "your-password"
-project_name = "admin"
-domain_name  = "Default"
-
-[llm]
-provider = "openai"               # or "ollama" for local LLM
-api_key  = "sk-..."               # Leave empty for Ollama
-model    = "gpt-4o-mini"          # or "llama3" for Ollama
-base_url = "https://api.openai.com/v1"
-
-[store]
-db_path = "cloudfang.db"
-
-[hands]
-monitor_interval_secs      = 300   # 5 minutes
-backup_cron                = "0 2 * * *"
-scale_check_interval_secs  = 900   # 15 minutes
-```
-
-### 3. Build the Project
+### 3. Usage
 
 ```bash
-# Build all 5 crates
-cargo build --workspace
+# Initialize and verify connectivity
+./target/release/cloudfang init
 
-# Or build optimized release binary
-cargo build --release --workspace
-```
+# Start the autonomous daemon
+./target/release/cloudfang start
 
-### 4. Run CloudFang
-
-```bash
-# Initialize system check
-cloudfang init
-
-# Start the daemon (all Hands active)
-cloudfang start
-
-# Check system overview
-cloudfang status
+# Enter interactive chat mode
+./target/release/cloudfang chat
 ```
 
 ---
 
 ## 💻 CLI Reference
 
+CloudFang provides a powerful CLI for both management and direct cloud operations:
+
 ```bash
-# System Management
-cloudfang init                        # Verify config & connectivity
-cloudfang start                       # Start daemon (all Hands)
-cloudfang status                      # System overview
+# System Operations
+cloudfang init               # Initialize DB and check connections
+cloudfang status             # Show daemon and hand status
+cloudfang start              # Run as a background daemon
 
-# Hand Control
-cloudfang hand status                 # Check all Hand statuses
-cloudfang hand activate monitor       # Activate the Monitor Hand
-cloudfang hand activate backup        # Trigger a backup cycle now
-cloudfang hand activate scale         # Run a scale check now
+# Manual Cloud Ops (Thin wrapper around cloudfang-ops)
+cloudfang ops vm list        # List all virtual machines
+cloudfang ops network list   # List all networks
+cloudfang ops volume list    # List all block volumes
 
-# Direct OpenStack Operations
-cloudfang ops vm list                 # List all VMs
-cloudfang ops vm reboot <id>          # Reboot a specific VM
-cloudfang ops volume list             # List all volumes
-cloudfang ops network list            # List all networks
+# Hand Management
+cloudfang hand list          # List available SysOps hands
+cloudfang hand run monitor   # Manually trigger a monitor cycle
 
-# AI Chat Interface
-cloudfang chat                        # Interactive natural language mode
-
-# History & Audit
-cloudfang incidents                   # View incident history
-cloudfang audit                       # View full audit trail
+# Audit & Insights
+cloudfang audit              # Show the latest logs from the agent
+cloudfang incidents          # List detected and resolved incidents
 ```
 
-### Example Chat Session
+---
 
-```
-$ cloudfang chat
+## 🗺️ Roadmap & Progress
 
-🤖 CloudFang Agent ready. Ask me anything about your cloud.
-
-> Which VMs are using more than 90% CPU?
-Thinking...
-🤖 Found 3 VMs with CPU usage > 90%:
-   - vm-prod-api-03 (94.2%) — Running, Project: production
-   - vm-worker-07   (91.8%) — Running, Project: batch-jobs
-   - vm-db-replica  (90.1%) — Running, Project: database
-
-   Recommendation: Consider scaling vm-prod-api-03 or migrating to a larger flavor.
-
-> Snapshot all production VMs right now
-Thinking...
-🤖 Starting snapshot cycle for project "production"...
-   ✅ vm-prod-api-01 — snapshot created: snap-a1b2c3
-   ✅ vm-prod-api-02 — snapshot created: snap-d4e5f6
-   ✅ vm-prod-api-03 — snapshot created: snap-g7h8i9
-   Done. 3 snapshots created in 47s.
-```
+- [x] **Phase 1**: Workspace setup & OpenStack API abstractions (`cloudfang-ops`)
+- [x] **Phase 2**: LLM Agent Loop & Tool Calling (`cloudfang-core`)
+- [x] **Phase 3**: Core SysOps Hands implementation (`cloudfang-hands`)
+- [ ] **Phase 4**: Advanced TUI Dashboard (`cloudfang-cli`)
+- [ ] **Phase 5**: Multi-cloud support and Alerting (Telegram/Slack)
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component | Technology |
-|---|---|
-| **Language** | Rust 2021 Edition |
-| **Async Runtime** | Tokio |
-| **LLM Client** | `async-openai` + Rig framework |
-| **HTTP Client** | Reqwest (rustls-tls) |
-| **Serialization** | Serde + serde_json + TOML |
-| **Database** | SQLite via `rusqlite` (bundled) |
-| **CLI** | Clap v4 (derive API) |
-| **Scheduler** | Cron expression parser |
-| **Error Handling** | `anyhow` + `thiserror` |
-| **Logging** | `tracing` + `tracing-subscriber` |
-
----
-
-## 🗺️ Development Roadmap
-
-| Phase | Contents | Status |
-|---|---|---|
-| **Phase 1** | Workspace setup + `cloudfang-ops` (Keystone auth + Nova) + CLI skeleton | ✅ Done |
-| **Phase 2** | `cloudfang-core` (agent loop + LLM client + tool registry) | ✅ Done |
-| **Phase 3** | `cloudfang-hands` (all 4 Hands) + `cloudfang-store` (SQLite) | 🚧 In Progress |
-| **Phase 4** | TUI dashboard + multi-cloud support + streaming alerts | 🔮 Planned |
-
----
-
-## 🧪 Development
-
-### Running Tests
-
-```bash
-# Unit tests for all crates
-cargo test --workspace
-
-# With output
-cargo test --workspace -- --nocapture
-```
-
-### Code Quality
-
-```bash
-# Check for errors without compiling
-cargo check --workspace
-
-# Lint (enforce zero warnings)
-cargo clippy --workspace -- -D warnings
-
-# Auto-format code
-cargo fmt --all
-```
-
-### Project-Specific Commands
-
-```bash
-# Build only the CLI binary
-cargo build -p cloudfang-cli
-
-# Run with verbose logging
-RUST_LOG=debug cloudfang start
-
-# Check OpenStack connectivity only
-cloudfang ops vm list --dry-run
-```
-
----
-
-## 🔐 Security Notes
-
-> [!WARNING]
-> **Never commit your `cloudfang.toml` to Git.** It contains your OpenStack credentials and LLM API keys. The file is already listed in `.gitignore`.
-
-- Store sensitive credentials in `cloudfang.toml` (gitignored)
-- For production, consider using environment variable overrides or a secrets manager
-- The SQLite `cloudfang.db` should also be excluded from version control
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-new-hand`
-3. Commit your changes with conventional commits: `git commit -m "feat(hands): add network-repair hand"`
-4. Push and open a Pull Request
+- **Language:** Rust (2021 Edition)
+- **Runtime:** Tokio (Async)
+- **LLM Layer:** [Rig](https://github.com/0xPlaygrounds/rig) + `async-openai`
+- **Networking:** Reqwest + Rustls
+- **Database:** SQLite (via `rusqlite`)
+- **CLI:** Clap v4
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
 <div align="center">
 
-Built with ⚡ Rust & 🤖 LLM by the CloudFang team.
+Built with 🦀 by the CloudFang Team.
 
-*"Your cloud ops team, running 24/7 — in Rust."*
+*"Automating the Cloud, one Crate at a time."*
 
 </div>
