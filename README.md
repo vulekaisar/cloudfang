@@ -22,7 +22,9 @@
 
 ## 🇻🇳 Giới thiệu (Vietnamese)
 
-**CloudFang** là một AI Agent tự hành được xây dựng bằng ngôn ngữ Rust, thiết kế chuyên biệt cho việc quản trị hạ tầng **OpenStack**. Dự án này mang đến khả năng "tự vận hành" cho hệ thống đám mây của bạn, giúp tự động hóa các tác vụ giám sát, khắc phục sự cố, sao lưu và mở rộng tài nguyên mà không cần sự can thiệp liên tục từ con người.
+**CloudFang**  là một dự án của X-OR CLOUD, xây dựng từ mã nguồn mở OpenFang và chuyển sang sử dụng ngôn ngữ RUST. Các AI Agent tự hành cũng được xây dựng bằng ngôn ngữ Rust, thiết kế chuyên biệt cho việc quản trị hạ tầng OpenStack. Dự án này mang đến khả năng "tự vận hành" cho hệ thống đám mây của bạn, giúp tự động hóa các tác vụ giám sát, khắc phục sự cố, sao lưu và mở rộng tài nguyên mà không cần sự can thiệp liên tục từ con người.
+
+
 
 Với CloudFang, SysOps Team có thể chuyển từ việc "phản ứng với sự cố" sang "giám sát chủ động" thông qua sức mạnh của các **SysOps Hands** (Cánh tay vận hành) được hỗ trợ bởi các mô hình ngôn ngữ lớn (LLM) như GPT-4o hoặc các model chạy local qua Ollama.
 
