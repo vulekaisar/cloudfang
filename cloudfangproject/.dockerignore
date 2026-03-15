@@ -1,0 +1,11 @@
+target/
+**/*.rs.bk
+Cargo.lock
+.git/
+.env
+*.db
+cloudfang.toml
+**/*.log
+tests/
+.gitignore
+.dockerignore

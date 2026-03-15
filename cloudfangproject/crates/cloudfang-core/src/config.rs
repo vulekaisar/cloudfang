@@ -87,12 +87,18 @@ impl CloudFangConfig {
 
     /// Convert OpenStack config to credentials.
     pub fn to_credentials(&self) -> cloudfang_ops::OpenStackCredentials {
+        let password = std::env::var("OS_PASSWORD").unwrap_or_else(|_| self.openstack.password.clone());
+        let username = std::env::var("OS_USERNAME").unwrap_or_else(|_| self.openstack.username.clone());
+        let project_name = std::env::var("OS_PROJECT_NAME").unwrap_or_else(|_| self.openstack.project_name.clone());
+        let auth_url = std::env::var("OS_AUTH_URL").unwrap_or_else(|_| self.openstack.auth_url.clone());
+        let domain_name = std::env::var("OS_DOMAIN_NAME").unwrap_or_else(|_| self.openstack.domain_name.clone());
+
         cloudfang_ops::OpenStackCredentials {
-            auth_url: self.openstack.auth_url.clone(),
-            username: self.openstack.username.clone(),
-            password: self.openstack.password.clone(),
-            project_name: self.openstack.project_name.clone(),
-            domain_name: self.openstack.domain_name.clone(),
+            auth_url,
+            username,
+            password,
+            project_name,
+            domain_name,
         }
     }
 }

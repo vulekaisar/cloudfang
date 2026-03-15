@@ -33,18 +33,41 @@ impl Hand for BackupHand {
         &self.state
     }
 
-    async fn execute(&mut self) -> anyhow::Result<HandReport> {
+    async fn execute(
+        &mut self,
+        session: &mut cloudfang_ops::OpenStackSession,
+        _store: cloudfang_store::Store,
+    ) -> anyhow::Result<HandReport> {
         self.state = HandState::Running;
         tracing::info!("💾 Backup Hand executing cycle...");
 
-        // TODO Phase 4: Connect to cloudfang-ops (cinder::create_snapshot)
+        let volumes = cloudfang_ops::cinder::list_volumes(session).await?;
+        let mut actions_taken = vec![];
+        let mut issues_found = 0;
+
+        for vol in volumes {
+            if vol.status == "available" || vol.status == "in-use" {
+                let snap_name = format!("auto-backup-{}-{}", vol.id, chrono::Utc::now().format("%Y%m%d"));
+                tracing::info!("Creating snapshot for volume {}: {}", vol.id, snap_name);
+                
+                match cloudfang_ops::cinder::create_snapshot(session, &vol.id, &snap_name, None).await {
+                    Ok(snap) => {
+                        actions_taken.push(format!("Created snapshot {} for volume {}", snap.id, vol.id));
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to backup volume {}: {}", vol.id, e);
+                        issues_found += 1;
+                    }
+                }
+            }
+        }
 
         let report = HandReport {
             hand_name: self.name().to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
-            summary: "Backup cycle completed (stub)".to_string(),
-            actions_taken: vec![],
-            issues_found: 0,
+            summary: format!("Backup cycle completed. Created {} snapshots.", actions_taken.len()),
+            actions_taken,
+            issues_found,
             issues_resolved: 0,
         };
         self.state = HandState::Active;

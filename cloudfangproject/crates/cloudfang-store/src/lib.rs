@@ -8,16 +8,21 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::path::Path;
 
+use std::sync::{Arc, Mutex};
+
 /// The database manager.
+#[derive(Clone)]
 pub struct Store {
-    conn: Connection,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl Store {
     /// Open (or create) the SQLite database at the given path.
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
-        let store = Self { conn };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         tracing::info!("📦 Store opened at {}", path.display());
         Ok(store)
@@ -26,14 +31,17 @@ impl Store {
     /// Open an in-memory database (for testing).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        let store = Self { conn };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         Ok(store)
     }
 
     /// Run schema migrations.
     fn migrate(&self) -> Result<()> {
-        self.conn.execute_batch(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS incidents (
                 id          TEXT PRIMARY KEY,
@@ -86,7 +94,8 @@ impl Store {
     // ── Incidents ──
 
     pub fn log_incident(&self, incident: &models::Incident) -> Result<()> {
-        self.conn.execute(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        conn.execute(
             "INSERT INTO incidents (id, timestamp, severity, resource_id, resource_name, description, action_taken, resolved)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             rusqlite::params![
@@ -99,7 +108,8 @@ impl Store {
     }
 
     pub fn resolve_incident(&self, incident_id: &str, action: &str) -> Result<()> {
-        self.conn.execute(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        conn.execute(
             "UPDATE incidents SET resolved = 1, action_taken = ?1 WHERE id = ?2",
             rusqlite::params![action, incident_id],
         )?;
@@ -107,7 +117,8 @@ impl Store {
     }
 
     pub fn list_incidents(&self, limit: usize) -> Result<Vec<models::Incident>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        let mut stmt = conn.prepare(
             "SELECT id, timestamp, severity, resource_id, resource_name, description, action_taken, resolved
              FROM incidents ORDER BY timestamp DESC LIMIT ?1",
         )?;
@@ -141,7 +152,8 @@ impl Store {
         success: bool,
     ) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
-        self.conn.execute(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        conn.execute(
             "INSERT INTO audit_log (timestamp, actor, action, target, details, success)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params![now, actor, action, target, details, success as i32],
@@ -159,7 +171,8 @@ impl Store {
         unit: &str,
     ) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
-        self.conn.execute(
+        let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("Mutex lock failed: {}", e))?;
+        conn.execute(
             "INSERT INTO metrics_cache (timestamp, resource_id, metric_name, value, unit)
              VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![now, resource_id, metric_name, value, unit],

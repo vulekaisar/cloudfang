@@ -21,6 +21,9 @@ enum Commands {
     /// Initialize CloudFang configuration
     Init,
 
+    /// Start the autonomous daemon (all Hands active)
+    Start,
+
     /// Show system status overview
     Status,
 
@@ -135,6 +138,9 @@ enum VolumeAction {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load .env if exists
+    dotenvy::dotenv().ok();
+
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -147,6 +153,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Init => cmd_init().await?,
+        Commands::Start => cmd_start().await?,
         Commands::Status => cmd_status().await?,
         Commands::Hand { action } => cmd_hand(action).await?,
         Commands::Ops { action } => cmd_ops(action).await?,
@@ -155,6 +162,41 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn cmd_start() -> Result<()> {
+    println!("☁️🐺 CloudFang Daemon Starting...");
+    
+    let config_path = std::path::Path::new("cloudfang.toml");
+    let config = cloudfang_core::config::CloudFangConfig::load(config_path)?;
+    let mut session = cloudfang_ops::OpenStackSession::new(config.to_credentials()).await?;
+    let store = cloudfang_store::Store::open(std::path::Path::new("cloudfang.db"))?;
+
+    let mut hands: Vec<Box<dyn cloudfang_hands::Hand>> = vec![
+        Box::new(cloudfang_hands::monitor::MonitorHand::new()),
+        Box::new(cloudfang_hands::remediate::RemediateHand::new()),
+        Box::new(cloudfang_hands::backup::BackupHand::new()),
+        Box::new(cloudfang_hands::scale::ScaleHand::new()),
+    ];
+
+    // Activate all hands for daemon mode
+    for hand in hands.iter_mut() {
+        hand.activate();
+    }
+
+    println!("✅ Daemon active. Press Ctrl+C to stop.");
+    
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+    
+    loop {
+        interval.tick().await;
+        
+        for hand in hands.iter_mut() {
+            if let Err(e) = hand.execute(&mut session, store.clone()).await {
+                tracing::error!("Error executing hand {}: {}", hand.name(), e);
+            }
+        }
+    }
 }
 
 async fn cmd_init() -> Result<()> {
@@ -272,9 +314,17 @@ async fn cmd_hand(action: HandAction) -> Result<()> {
         }
         HandAction::Run { name } => {
             if let Some(hand) = hands.iter_mut().find(|h| h.name() == name) {
+                let config_path = std::path::Path::new("cloudfang.toml");
+                if !config_path.exists() {
+                    anyhow::bail!("No cloudfang.toml found. Run 'cloudfang init' first.");
+                }
+                let config = cloudfang_core::config::CloudFangConfig::load(config_path)?;
+                let mut session = cloudfang_ops::OpenStackSession::new(config.to_credentials()).await?;
+                let store = cloudfang_store::Store::open(std::path::Path::new("cloudfang.db"))?;
+
                 hand.activate();
                 println!("🔄 Running Hand: {} ...", name);
-                let report = hand.execute().await?;
+                let report = hand.execute(&mut session, store).await?;
                 println!("📊 Report:");
                 println!("   Summary: {}", report.summary);
                 println!("   Issues found: {}", report.issues_found);
@@ -438,10 +488,10 @@ async fn cmd_chat() -> Result<()> {
     let config = cloudfang_core::config::CloudFangConfig::load(config_path)?;
 
     let llm_config = cloudfang_core::config::LlmConfig {
-        provider: config.llm.provider,
-        api_key: config.llm.api_key,
-        model: config.llm.model,
-        base_url: config.llm.base_url,
+        provider: config.llm.provider.clone(),
+        api_key: config.llm.api_key.clone(),
+        model: config.llm.model.clone(),
+        base_url: config.llm.base_url.clone(),
     };
 
     let system_prompt =
@@ -451,8 +501,16 @@ async fn cmd_chat() -> Result<()> {
         Be concise and actionable in your responses.";
 
     let llm = cloudfang_core::llm::LlmClient::new(llm_config, system_prompt);
-    let tools = cloudfang_core::tools::ToolRegistry::new();
+    let mut tools = cloudfang_core::tools::ToolRegistry::new();
+    
+    // Register real-world tools
+    tools.register(Box::new(cloudfang_core::ops_tools::ListServersTool));
+    tools.register(Box::new(cloudfang_core::ops_tools::ServerActionTool));
+
     let agent = cloudfang_core::agent::Agent::new(llm, tools);
+
+    let creds = config.to_credentials();
+    let mut session = cloudfang_ops::OpenStackSession::new(creds).await?;
 
     loop {
         print!("> ");
@@ -472,7 +530,7 @@ async fn cmd_chat() -> Result<()> {
             continue;
         }
 
-        match agent.process(input).await {
+        match agent.process(&mut session, input).await {
             Ok(response) => println!("🐺: {}\n", response),
             Err(e) => println!("❌ Error: {}\n", e),
         }

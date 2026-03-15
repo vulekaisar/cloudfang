@@ -8,12 +8,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![OpenStack](https://img.shields.io/badge/OpenStack-Compatible-red?style=for-the-badge&logo=openstack)](https://www.openstack.org/)
 [![LLM Powered](https://img.shields.io/badge/LLM-Powered-green?style=for-the-badge&logo=openai)](https://openai.com/)
+[![Production Ready](https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge)](#-production-ready-features)
 
 ---
 
 *A lightweight, LLM-powered SysOps agent that monitors, heals, backs up, and scales your OpenStack cloud infrastructure — autonomously.*
 
-[**Overview**](#-overview) | [**Features**](#-key-features) | [**Architecture**](#-architecture) | [**Getting Started**](#-getting-started) | [**CLI Reference**](#-cli-reference)
+[**Overview**](#-overview) | [**Features**](#-key-features) | [**Production Readiness**](#-production-ready-features) | [**Architecture**](#-architecture) | [**Getting Started**](#-getting-started)
 
 ---
 
@@ -48,14 +49,13 @@ Instead of manually watching dashboards, CloudFang's **SysOps Hands** work in th
            ┌────────────▼───┐    ┌─────────▼──────────┐
            │ cloudfang-ops  │    │  cloudfang-hands    │
            │ OpenStack APIs │    │  Monitor / Remediate│
-           │ Nova, Neutron  │    │  Backup / Scale     │
-           │ Cinder, Glance │    └─────────┬───────────┘
-           └────────────────┘             │
-                        │                 │
-                     ┌──▼─────────────────▼──┐
+           │ Client / Retry │    │  Backup / Scale     │
+           └────────────────┘    └─────────┬───────────┘
+                        │                  │
+                     ┌──▼──────────────────▼─┐
                      │    cloudfang-store     │
                      │  SQLite + Audit Log    │
-                     └───────────────────────┘
+                     └────────────────────────┘
 ```
 
 ---
@@ -66,11 +66,29 @@ Instead of manually watching dashboards, CloudFang's **SysOps Hands** work in th
 |---|---|
 | 🤖 **LLM-Powered Decisions** | Uses GPT-4o / Ollama to analyze metrics and perform complex tool calls. |
 | 👁️ **Autonomous Monitoring** | Continuous health checks for VMs, disk, network, and OpenStack services. |
-| 🔧 **Self-Healing Remediation** | Automatically detects failures and attempts recovery (restart, clear disk, etc.). |
+| 🔧 **Self-Healing Remediation** | Automatically detects failures and attempts recovery (e.g., Hard Reboot). |
 | 💾 **Scheduled Backups** | Intelligent snapshot orchestration for critical VMs and volumes. |
-| 📈 **Intelligent Scaling** | Trend analysis of system load with actionable recommendations or auto-scaling. |
-| 🗃️ **Universal Persistence** | All actions, logs, and metrics are stored in a local SQLite database for auditing. |
+| 📈 **Intelligent Scaling** | Trend analysis of system load with actionable recommendations. |
+| 🗃️ **Universal Persistence** | All actions, logs, and metrics are stored safely in a thread-safe SQLite DB. |
 | 💬 **Natural Language Ops** | Interactive chat interface to query status: *"Which VMs are idle for 7 days?"* |
+
+---
+
+## 🚀 Production Ready Features
+
+CloudFang has been upgraded to a **100% Enterprise-Ready** state:
+
+- **Fully Functioning "Hands"**: 
+  - `MonitorHand` talks directly to OpenStack to scan for VM in ERROR states.
+  - `RemediateHand` intercepts error incidents and auto-reboots broken VMs.
+  - `BackupHand` automatically creates backups (`snapshots`) of volumes `in-use`.
+  - `ScaleHand` proactively scans instance memory diagnostics to suggest scaling up/down.
+- **Resilient API Calls (Retry Mechanism)**: Includes automatic backoff retries and dynamic token refreshes for robust network interactions.
+- **Real LLM Tools**: AI reasoning is now hooked up to real Cloud operations. You can ask CloudFang to list your VMs, or reboot them, and it handles the underlying OpenStack APIs via Tool Calls.
+- **Secret Management**: OpenStack credentials are no longer restricted to plain-text TOML files. Uses robust Environment Variables injection (`OS_PASSWORD`, `OS_USERNAME`, etc.).
+- **Telegram Alerting Integration**: Receive proactive notifications right in your Telegram whenever `RemediateHand` executes an automated recovery. 
+- **Thread-safe Persistence Layer:** Safely execute multi-threaded loops and async database inserts using an `Arc<Mutex<Connection>>` mapped SQLite storage.
+- **Unit & Mock Testing:** Tested via `mockito` to accurately mirror Keystone identity servers to prevent token regressions.
 
 ---
 
@@ -78,11 +96,11 @@ Instead of manually watching dashboards, CloudFang's **SysOps Hands** work in th
 
 CloudFang is organized as a modular Rust workspace for maximum maintainability:
 
-- **`cloudfang-core`**: The brain. Contains the agent loop, LLM integration (via `async-openai` and `rig-core`), and the task scheduler.
-- **`cloudfang-ops`**: The hands. Custom OpenStack API client implementing Keystone (Auth), Nova (Compute), Neutron (Network), Cinder (Storage), and more.
-- **`cloudfang-hands`**: The agents. Defines specific autonomous behaviors (Monitor, Remediate, Backup, Scale).
-- **`cloudfang-store`**: The memory. SQLite backend for incident tracking, metrics history, and audit logs.
-- **`cloudfang-cli`**: The face. Command-line interface and planned TUI for human interaction.
+- **`cloudfang-core`**: The brain. Contains the agent loop, LLM integration, and real OpenStack generic Tools mappings.
+- **`cloudfang-ops`**: The hands. Custom OpenStack API client implementing Keystone (Auth), Nova (Compute), Cinder (Storage), and Retry Network patterns.
+- **`cloudfang-hands`**: The agents. Defines specific autonomous behaviors.
+- **`cloudfang-store`**: The memory. SQLite backend for incident tracking and metrics history.
+- **`cloudfang-cli`**: The face. Command-line interface and background Daemon.
 
 ---
 
@@ -91,7 +109,7 @@ CloudFang is organized as a modular Rust workspace for maximum maintainability:
 ### Prerequisites
 
 - **Rust** `1.75+` — [Install via rustup](https://rustup.rs/)
-- **Access to an OpenStack Cluster** (or environment variables for mock mode)
+- **Access to an OpenStack Cluster** 
 - **OpenAI API Key** or local **Ollama** instance.
 
 ### 1. Installation
@@ -102,26 +120,43 @@ cd cloudfang
 cargo build --release
 ```
 
-### 2. Configuration
+### 2. Configuration & Secrets
 
-Copy the template and fill in your OpenStack and LLM credentials:
+CloudFang natively supports `.env` and `cloudfang.toml`. Configure your connection details:
 
 ```bash
-cp cloudfang.toml.example cloudfang.toml
-# Edit cloudfang.toml with your favorite editor
+# Provide environment variables via .env 
+echo "OS_AUTH_URL=https://my-openstack/v3" >> .env
+echo "OS_USERNAME=admin" >> .env
+echo "OS_PASSWORD=supersecret" >> .env
+echo "OS_PROJECT_NAME=admin" >> .env
+echo "OS_DOMAIN_NAME=Default" >> .env
+
+# Optional: Enable Telegram Notifications
+echo "TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN" >> .env
+echo "TELEGRAM_CHAT_ID=YOUR_CHAT_ID" >> .env
 ```
 
 ### 3. Usage
 
 ```bash
 # Initialize and verify connectivity
-./target/release/cloudfang init
+cloudfang init
 
 # Start the autonomous daemon
-./target/release/cloudfang start
+cloudfang start
 
-# Enter interactive chat mode
-./target/release/cloudfang chat
+# Enter interactive chat mode with the AI Agent
+cloudfang chat
+```
+
+### 4. Docker Deployment
+
+Launch standard instances using the native container solution:
+
+```bash
+docker build -t cloudfang-agent .
+docker run -d --name cloudfang-daemon --env-file .env cloudfang-agent
 ```
 
 ---
@@ -138,15 +173,12 @@ cloudfang start              # Run as a background daemon
 
 # Manual Cloud Ops (Thin wrapper around cloudfang-ops)
 cloudfang ops vm list        # List all virtual machines
-cloudfang ops network list   # List all networks
-cloudfang ops volume list    # List all block volumes
 
 # Hand Management
 cloudfang hand list          # List available SysOps hands
 cloudfang hand run monitor   # Manually trigger a monitor cycle
 
 # Audit & Insights
-cloudfang audit              # Show the latest logs from the agent
 cloudfang incidents          # List detected and resolved incidents
 ```
 
@@ -155,21 +187,11 @@ cloudfang incidents          # List detected and resolved incidents
 ## 🗺️ Roadmap & Progress
 
 - [x] **Phase 1**: Workspace setup & OpenStack API abstractions (`cloudfang-ops`)
-- [x] **Phase 2**: LLM Agent Loop & Tool Calling (`cloudfang-core`)
+- [x] **Phase 2**: LLM Agent Loop, DB Stores & Tool Calling (`cloudfang-core`)
 - [x] **Phase 3**: Core SysOps Hands implementation (`cloudfang-hands`)
-- [ ] **Phase 4**: Advanced TUI Dashboard (`cloudfang-cli`)
-- [ ] **Phase 5**: Multi-cloud support and Alerting (Telegram/Slack)
-
----
-
-## 🛠️ Tech Stack
-
-- **Language:** Rust (2021 Edition)
-- **Runtime:** Tokio (Async)
-- **LLM Layer:** [Rig](https://github.com/0xPlaygrounds/rig) + `async-openai`
-- **Networking:** Reqwest + Rustls
-- **Database:** SQLite (via `rusqlite`)
-- **CLI:** Clap v4
+- [x] **Phase 4**: Advanced Self-Healing, Retries, and Telegram Alerting
+- [x] **Phase 5**: Dockerization & Enterprise Refactoring
+- [ ] **Phase 6**: Web Interface & External Plugin Support
 
 ---
 

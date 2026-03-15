@@ -23,7 +23,11 @@ pub struct ToolResult {
 #[async_trait]
 pub trait Tool: Send + Sync {
     fn definition(&self) -> ToolDef;
-    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult>;
+    async fn execute(
+        &self,
+        session: &mut cloudfang_ops::OpenStackSession,
+        args: serde_json::Value,
+    ) -> anyhow::Result<ToolResult>;
 }
 
 /// Registry that holds all available tools.
@@ -53,9 +57,14 @@ impl ToolRegistry {
         self.tools.values().map(|t| t.definition()).collect()
     }
 
-    pub async fn execute(&self, name: &str, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+    pub async fn execute(
+        &self,
+        session: &mut cloudfang_ops::OpenStackSession,
+        name: &str,
+        args: serde_json::Value,
+    ) -> anyhow::Result<ToolResult> {
         match self.tools.get(name) {
-            Some(tool) => tool.execute(args).await,
+            Some(tool) => tool.execute(session, args).await,
             None => Ok(ToolResult {
                 success: false,
                 output: format!("Tool '{}' not found", name),

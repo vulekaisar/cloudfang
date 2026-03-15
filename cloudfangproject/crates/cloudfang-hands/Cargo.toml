@@ -17,3 +17,4 @@ uuid.workspace = true
 
 cloudfang-ops.workspace = true
 cloudfang-store.workspace = true
+reqwest = { workspace = true, features = ["json"] }

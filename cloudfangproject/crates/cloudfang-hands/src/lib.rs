@@ -56,7 +56,11 @@ pub trait Hand: Send + Sync {
     fn state(&self) -> &HandState;
 
     /// Execute one cycle of this Hand's work.
-    async fn execute(&mut self) -> anyhow::Result<HandReport>;
+    async fn execute(
+        &mut self,
+        session: &mut cloudfang_ops::OpenStackSession,
+        store: cloudfang_store::Store,
+    ) -> anyhow::Result<HandReport>;
 
     /// Activate this Hand.
     fn activate(&mut self);

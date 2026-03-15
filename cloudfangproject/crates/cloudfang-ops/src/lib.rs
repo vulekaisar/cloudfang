@@ -81,13 +81,15 @@ impl OpenStackSession {
 
     /// Check if the current token is still valid.
     pub fn is_token_valid(&self) -> bool {
-        chrono::Utc::now() < self.expires_at
+        // We consider token invalid if it expires in less than 60 seconds
+        let buffer = chrono::Duration::seconds(60);
+        chrono::Utc::now() + buffer < self.expires_at
     }
 
     /// Re-authenticate if the token has expired.
     pub async fn ensure_authenticated(&mut self) -> OpsResult<()> {
         if !self.is_token_valid() {
-            tracing::info!("Token expired, re-authenticating...");
+            tracing::info!("Token expired or near expiration, re-authenticating...");
             let new_session = keystone::authenticate(self.credentials.clone()).await?;
             self.token = new_session.token;
             self.expires_at = new_session.expires_at;
@@ -117,12 +119,68 @@ impl OpenStackSession {
         catalog: Vec<ServiceEndpoint>,
         credentials: OpenStackCredentials,
     ) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .user_agent("CloudFang-Agent/0.1.0")
+            .build()
+            .unwrap_or_default();
+
         Self {
             token,
             expires_at,
             catalog,
             credentials,
-            client: reqwest::Client::new(),
+            client,
         }
+    }
+
+    /// Perform an HTTP request with automatic token refresh and retry logic.
+    pub async fn request_with_retry(
+        &mut self,
+        method: reqwest::Method,
+        url: &str,
+        body: Option<serde_json::Value>,
+    ) -> OpsResult<reqwest::Response> {
+        self.ensure_authenticated().await?;
+
+        let mut attempts = 0;
+        let max_attempts = 3;
+        let mut last_error = None;
+
+        while attempts < max_attempts {
+            if attempts > 0 {
+                let delay = std::time::Duration::from_secs(2u64.pow(attempts));
+                tracing::warn!("Retry attempt {} after {:?}...", attempts, delay);
+                tokio::time::sleep(delay).await;
+            }
+
+            let mut req = self.client.request(method.clone(), url)
+                .header("X-Auth-Token", &self.token);
+            
+            if let Some(ref b) = body {
+                req = req.json(b);
+            }
+
+            match req.send().await {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        return Ok(resp);
+                    } else if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+                        tracing::info!("Token likely expired (401), refreshing...");
+                        self.ensure_authenticated().await?;
+                    } else {
+                        let status = resp.status();
+                        let text = resp.text().await.unwrap_or_default();
+                        last_error = Some(OpsError::ApiError { status: status.as_u16(), message: text });
+                    }
+                }
+                Err(e) => {
+                    last_error = Some(OpsError::HttpError(e));
+                }
+            }
+            attempts += 1;
+        }
+
+        Err(last_error.unwrap_or_else(|| OpsError::AuthError(format!("Request failed after {} attempts", max_attempts))))
     }
 }

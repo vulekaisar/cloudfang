@@ -19,7 +19,11 @@ impl Agent {
 
     /// Process a user query or automated task through the agent loop.
     /// The agent will call tools as needed and return the final response.
-    pub async fn process(&self, input: &str) -> Result<String> {
+    pub async fn process(
+        &self,
+        session: &mut cloudfang_ops::OpenStackSession,
+        input: &str,
+    ) -> Result<String> {
         let mut messages = vec![Message {
             role: "user".to_string(),
             content: input.to_string(),
@@ -44,7 +48,10 @@ impl Agent {
                 } => {
                     tracing::info!("🔧 Agent calling tool: {}", tool_name);
 
-                    let result = self.tools.execute(&tool_name, arguments.clone()).await?;
+                    let result = self
+                        .tools
+                        .execute(session, &tool_name, arguments.clone())
+                        .await?;
 
                     // Add assistant tool call and tool result to conversation
                     messages.push(Message {
