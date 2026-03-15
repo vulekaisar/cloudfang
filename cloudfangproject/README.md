@@ -194,6 +194,8 @@ cloudfang incidents          # List detected and resolved incidents
 - [ ] **Phase 6**: Web Interface & External Plugin Support
 
 ---
+## Về X-OR CLOUD
+xProxy là sản phẩm của X-OR CLOUD — nền tảng cloud và AI có chủ quyền hàng đầu tại Việt Nam và khu vực Đông Nam Á.
 
 ## 📄 License
 
