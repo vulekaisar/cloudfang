@@ -197,7 +197,7 @@ cloudfang incidents          # List detected and resolved incidents
 
 ---
 ## Về X-OR CLOUD
-xProxy là sản phẩm của X-OR CLOUD — nền tảng cloud và AI có chủ quyền hàng đầu tại Việt Nam và khu vực Đông Nam Á.
+xCloudFang là sản phẩm của X-OR CLOUD — nền tảng cloud và AI có chủ quyền hàng đầu tại Việt Nam và khu vực Đông Nam Á.
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
